@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Free Real-Time Bus Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 500px; width: 100%; border: 1px solid #ccc; }
+        body { font-family: sans-serif; text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>🚍 Smart Bus Live Tracking (Open Source)</h2>
+    <div id="map"></div>
+    <p id="status">Connecting to Firebase...</p>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        // REPLACE with your Firebase config from your console
+        const firebaseConfig = {
+            databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
+            projectId: "smartbustracker-25ceb",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // 3. Initialize the Map (using OpenStreetMap tiles)
+        const map = L.map('map').setView([12.9716, 77.5946], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Custom Bus Icon
+        const busIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
+            iconSize: [40, 40]
+        });
+        const marker = L.marker([12.9716, 77.5946], {icon: busIcon}).addTo(map);
+
+        // 4. Listen to Firebase for live updates
+        database.ref('bus_01').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const newPos = [data.latitude, data.longitude];
+                marker.setLatLng(newPos); // Update marker position
+                map.panTo(newPos);        // Smoothly move map to bus
+                document.getElementById("status").innerText = `Bus ${data.bus_id} is moving...`;
+            }
+        });
+    </script>
+</body>
+</html>
