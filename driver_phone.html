@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Driver GPS Transmitter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 40px; background: #2c3e50; color: white; }
+        .status-box { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; margin: 20px 0; }
+        .btn { background: #27ae60; color: white; padding: 20px 40px; border-radius: 50px; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer; }
+        .btn:active { background: #219150; }
+        #coords { font-family: monospace; color: #f1c40f; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+    <h1>📲 Bus GPS Mode</h1>
+    <p>Use this page on the bus driver's phone.</p>
+    
+    <button class="btn" onclick="toggleTracking()" id="mainBtn">Start Live Tracking</button>
+
+    <div class="status-box">
+        <b>Current Status:</b>
+        <div id="statusText">System Ready</div>
+        <hr>
+        <b>GPS Data:</b>
+        <div id="coords">Lat: -- | Lng: --</div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
+            projectId: "smartbustracker-25ceb",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let watchID = null;
+
+        function toggleTracking() {
+            const btn = document.getElementById("mainBtn");
+            if (watchID === null) {
+                if (navigator.geolocation) {
+                    watchID = navigator.geolocation.watchPosition(sendData, handleError, {
+                        enableHighAccuracy: true,
+                        maximumAge: 0
+                    });
+                    btn.innerText = "Stop Tracking";
+                    btn.style.background = "#e74c3c";
+                    document.getElementById("statusText").innerText = "📡 Broadcasting Live GPS...";
+                }
+            } else {
+                navigator.geolocation.clearWatch(watchID);
+                watchID = null;
+                btn.innerText = "Start Live Tracking";
+                btn.style.background = "#27ae60";
+                document.getElementById("statusText").innerText = "System Paused";
+            }
+        }
+
+        function sendData(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            document.getElementById("coords").innerText = `Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}`;
+
+            // This updates the SAME database keys your map is watching
+            database.ref('bus_01').update({
+                latitude: lat,
+                longitude: lng,
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+
+        function handleError(err) {
+            alert("Error: Please enable Location/GPS on your phone!");
+            console.warn(err);
+        }
+    </script>
+</body>
+</html>
