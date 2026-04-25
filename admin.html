@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Smart Bus Tracking</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 30px; background: #2c3e50; color: white; text-align: center; }
+        .admin-box { background: #34495e; padding: 20px; border-radius: 10px; display: inline-block; width: 350px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
+        button { background: #27ae60; color: white; padding: 10px 20px; border: none; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #2ecc71; }
+        #msg { margin-top: 15px; color: #2ecc71; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>🛠 Admin Control Panel</h2>
+    <div class="admin-box">
+        <h3>Update Bus & Driver Info</h3>
+        <input type="text" id="busId" placeholder="Bus Number (e.g. KA-01-1234)">
+        <input type="text" id="driverName" placeholder="Driver Name">
+        <input type="text" id="routeId" placeholder="Route (e.g. Route 22A)">
+        <button onclick="updateBusData()">Update System</button>
+        <p id="msg"></p>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        // Use the same Firebase config as your index.html
+        const firebaseConfig = {
+            databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
+            projectId: "smartbustracker-25ceb",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+       function updateBusData() {
+    const busNo = document.getElementById('busId').value;
+    const driver = document.getElementById('driverName').value;
+    const route = document.getElementById('routeId').value;
+
+    if(busNo && driver && route) {
+        // We use exact keys: bus_number, driver_name, route_name
+        database.ref('bus_01').update({
+            bus_number: busNo,
+            driver_name: driver,
+            route_name: route,
+            last_admin_update: new Date().toLocaleTimeString()
+        }).then(() => {
+            document.getElementById('msg').innerText = "✅ System Updated!";
+        });
+    } else {
+        alert("Fill all fields");
+    }
+}
+    </script>
+</body>
+</html>
