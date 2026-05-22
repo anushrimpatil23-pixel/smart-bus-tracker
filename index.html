@@ -1,24 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Free Real-Time Bus Tracker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bus Live Tracking</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map { height: 500px; width: 100%; border: 1px solid #ccc; }
-        body { font-family: sans-serif; text-align: center; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 1; }
+        
+        .header-box {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000;
+            background: white; padding: 10px 25px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-weight: bold; color: #2c3e50;
+        }
+
+        .dashboard-container {
+            position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 15px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        }
+
+        .info-card { text-align: center; border-right: 1px solid #eee; }
+        .info-card:last-child { border-right: none; }
+        .info-card b { display: block; color: #7f8c8d; font-size: 0.7rem; text-transform: uppercase; }
+        .info-card span { font-size: 0.95rem; color: #2c3e50; font-weight: bold; display: block; margin-top: 3px; }
+        
+        .highlight { color: #e67e22 !important; }
+        .location-text { color: #27ae60 !important; font-size: 0.85rem !important; }
     </style>
 </head>
 <body>
-    <h2>🚍 Smart Bus Live Tracking (Open Source)</h2>
+
+    <div class="header-box">🚍 Belagavi Live Tracking</div>
     <div id="map"></div>
-    <p id="status">Connecting to Firebase...</p>
+
+    <div class="dashboard-container">
+        <div class="info-card">
+            <b>Bus No</b>
+            <span id="displayBusNo">Waiting...</span>
+        </div>
+        <div class="info-card">
+            <b>Driver</b>
+            <span id="displayDriver">Waiting...</span>
+        </div>
+        <div class="info-card">
+            <b>Route</b>
+            <span id="displayRoute">Waiting...</span>
+        </div>
+        <div class="info-card">
+            <b>Current Area</b>
+            <span id="displayLocation" class="location-text">Detecting...</span>
+        </div>
+        <div class="info-card">
+            <b>Arrival</b>
+            <span id="displayEta" class="highlight">...</span>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <script>
-        // REPLACE with your Firebase config from your console
+        // FIREBASE SETUP
         const firebaseConfig = {
             databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
             projectId: "smartbustracker-25ceb",
@@ -26,27 +72,48 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // 3. Initialize the Map (using OpenStreetMap tiles)
-        const map = L.map('map').setView([12.9716, 77.5946], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        // MAP SETUP
+        const map = L.map('map', { zoomControl: false }).setView([15.8525, 74.5061], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // Custom Bus Icon
         const busIcon = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
-            iconSize: [40, 40]
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
         });
-        const marker = L.marker([12.9716, 77.5946], {icon: busIcon}).addTo(map);
+        let marker = L.marker([15.8525, 74.5061], {icon: busIcon}).addTo(map);
 
-        // 4. Listen to Firebase for live updates
+        const TARGET_STOP = { lat: 15.8587, lng: 74.5100 };
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2-lat1)*Math.PI/180;
+            const dLon = (lon2-lon1)*Math.PI/180;
+            const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); 
+        }
+
+        // FETCH DATA IN REAL-TIME
         database.ref('bus_01').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const newPos = [data.latitude, data.longitude];
-                marker.setLatLng(newPos); // Update marker position
-                map.panTo(newPos);        // Smoothly move map to bus
-                document.getElementById("status").innerText = `Bus ${data.bus_id} is moving...`;
+                // Update Map
+                if(data.latitude && data.longitude) {
+                    const currentPos = [data.latitude, data.longitude];
+                    marker.setLatLng(currentPos);
+                    map.panTo(currentPos);
+                    
+                    // Update ETA
+                    const dist = getDistance(data.latitude, data.longitude, TARGET_STOP.lat, TARGET_STOP.lng);
+                    const timeMinutes = Math.round((dist / 15) * 60); 
+                    document.getElementById("displayEta").innerText = timeMinutes + " Mins";
+                }
+
+                // Update Boxes (If Admin hasn't set them yet, show default text)
+                document.getElementById("displayBusNo").innerText = data.bus_number || "Set in Admin";
+                document.getElementById("displayDriver").innerText = data.driver_name || "Set in Admin";
+                document.getElementById("displayRoute").innerText = data.route_name || "Set in Admin";
+                document.getElementById("displayLocation").innerText = data.current_location || "Moving...";
             }
         });
     </script>
