@@ -64,7 +64,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <script>
-        // FIREBASE SETUP
         const firebaseConfig = {
             databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
             projectId: "smartbustracker-25ceb",
@@ -72,7 +71,6 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // MAP SETUP
         const map = L.map('map', { zoomControl: false }).setView([15.8525, 74.5061], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -93,23 +91,19 @@
             return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); 
         }
 
-        // FETCH DATA IN REAL-TIME
         database.ref('bus_01').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Update Map
                 if(data.latitude && data.longitude) {
                     const currentPos = [data.latitude, data.longitude];
                     marker.setLatLng(currentPos);
                     map.panTo(currentPos);
                     
-                    // Update ETA
                     const dist = getDistance(data.latitude, data.longitude, TARGET_STOP.lat, TARGET_STOP.lng);
                     const timeMinutes = Math.round((dist / 15) * 60); 
                     document.getElementById("displayEta").innerText = timeMinutes + " Mins";
                 }
 
-                // Update Boxes (If Admin hasn't set them yet, show default text)
                 document.getElementById("displayBusNo").innerText = data.bus_number || "Set in Admin";
                 document.getElementById("displayDriver").innerText = data.driver_name || "Set in Admin";
                 document.getElementById("displayRoute").innerText = data.route_name || "Set in Admin";
