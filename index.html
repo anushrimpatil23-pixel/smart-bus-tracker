@@ -114,5 +114,14 @@
             }
         });
     </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('App Registered', reg))
+                .catch(err => console.error('App Registration Failed', err));
+            });
+        }
+    </script>
 </body>
 </html>
