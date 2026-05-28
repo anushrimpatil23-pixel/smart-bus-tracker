@@ -90,9 +90,19 @@
                     .then(response => response.json())
                     .then(data => {
                         const addr = data.address;
+                        
+                        // 1. PRIORITY: Look for Institutions, Landmarks, and Amenities first
+                        let landmark = addr.university || addr.college || addr.amenity || addr.building || addr.hospital || addr.tourism || addr.office;
+                        
+                        // 2. FALLBACK: If no landmark exists, look for the village/neighborhood
                         let localArea = addr.neighbourhood || addr.residential || addr.village || addr.suburb || addr.road || addr.hamlet || "Local Area";
+                        
+                        // 3. Choose the best match
+                        let primaryName = landmark || localArea;
                         let cityArea = addr.city || addr.town || addr.county || "";
-                        let fullLocation = cityArea ? `${localArea}, ${cityArea}` : localArea;
+                        
+                        // 4. Combine them
+                        let fullLocation = cityArea ? `${primaryName}, ${cityArea}` : primaryName;
 
                         document.getElementById("statusText").innerText = `📍 ${fullLocation}`;
                         updateData.current_location = fullLocation;
@@ -106,7 +116,6 @@
             } else {
                 database.ref('bus_01').update(updateData);
             }
-        }
 
         function handleError(err) {
             alert("Error: Please enable Location/GPS access!");
