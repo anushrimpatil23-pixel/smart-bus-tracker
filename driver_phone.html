@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Driver GPS Transmitter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
     <link rel="manifest" href="driver_manifest.json">
     <meta name="theme-color" content="#27ae60">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448339.png">
-    <title>Driver GPS Transmitter</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2c3e50">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448339.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
     <style>
         body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #2c3e50; color: white; margin: 0; }
         h1 { font-size: 1.8rem; }
@@ -91,10 +90,10 @@
                     .then(data => {
                         const addr = data.address;
                         
-                        // 1. PRIORITY: Look for Institutions, Landmarks, and Amenities first
+                        // 1. PRIORITY: Look for Institutions and Landmarks
                         let landmark = addr.university || addr.college || addr.amenity || addr.building || addr.hospital || addr.tourism || addr.office;
                         
-                        // 2. FALLBACK: If no landmark exists, look for the village/neighborhood
+                        // 2. FALLBACK: Look for the village/neighborhood
                         let localArea = addr.neighbourhood || addr.residential || addr.village || addr.suburb || addr.road || addr.hamlet || "Local Area";
                         
                         // 3. Choose the best match
@@ -116,12 +115,14 @@
             } else {
                 database.ref('bus_01').update(updateData);
             }
+        }
 
         function handleError(err) {
             alert("Error: Please enable Location/GPS access!");
             console.warn(err);
         }
     </script>
+    
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
