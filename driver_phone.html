@@ -50,9 +50,11 @@
             const btn = document.getElementById("mainBtn");
             if (watchID === null) {
                 if (navigator.geolocation) {
+                    // Added timeout and forced high accuracy
                     watchID = navigator.geolocation.watchPosition(sendData, handleError, {
-                        enableHighAccuracy: true,
-                        maximumAge: 0
+                        enableHighAccuracy: true, 
+                        maximumAge: 0,
+                        timeout: 10000 
                     });
                     btn.innerText = "Stop Tracking";
                     btn.style.background = "#e74c3c";
@@ -72,7 +74,14 @@
         function sendData(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy; // Gets the accuracy in meters
             
+            // THE FIX: If the accuracy is worse than 100 meters, ignore it!
+            if (accuracy > 100) {
+                document.getElementById("statusText").innerText = `📡 Calibrating GPS (Wait... ${Math.round(accuracy)}m accuracy)`;
+                return; // Stop here, don't send bad data to Firebase
+            }
+
             document.getElementById("coords").innerText = `Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}`;
 
             let updateData = {
@@ -88,14 +97,9 @@
                 fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
                     .then(response => response.json())
                     .then(data => {
-                        const addr = data.address;
-                        
-                       // Grab the fully formatted address string straight from the map database
                         let rawAddress = data.display_name;
                         
                         if (rawAddress) {
-                            // The API gives a very long address (e.g., "Road, Area, Taluk, District, State, Pincode").
-                            // We split it by commas and ONLY keep the first two parts (the most accurate local details).
                             let addressParts = rawAddress.split(',');
                             let fullLocation = addressParts.slice(0, 2).join(',').trim();
 
@@ -105,9 +109,6 @@
                             document.getElementById("statusText").innerText = `📍 Detecting Area...`;
                             updateData.current_location = "Moving...";
                         }
-
-                        document.getElementById("statusText").innerText = `📍 ${fullLocation}`;
-                        updateData.current_location = fullLocation;
                         
                         database.ref('bus_01').update(updateData);
                     })
