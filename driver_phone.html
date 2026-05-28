@@ -90,18 +90,21 @@
                     .then(data => {
                         const addr = data.address;
                         
-                        // 1. PRIORITY: Look for Institutions and Landmarks
-                        let landmark = addr.university || addr.college || addr.amenity || addr.building || addr.hospital || addr.tourism || addr.office;
+                       // Grab the fully formatted address string straight from the map database
+                        let rawAddress = data.display_name;
                         
-                        // 2. FALLBACK: Look for the village/neighborhood
-                        let localArea = addr.neighbourhood || addr.residential || addr.village || addr.suburb || addr.road || addr.hamlet || "Local Area";
-                        
-                        // 3. Choose the best match
-                        let primaryName = landmark || localArea;
-                        let cityArea = addr.city || addr.town || addr.county || "";
-                        
-                        // 4. Combine them
-                        let fullLocation = cityArea ? `${primaryName}, ${cityArea}` : primaryName;
+                        if (rawAddress) {
+                            // The API gives a very long address (e.g., "Road, Area, Taluk, District, State, Pincode").
+                            // We split it by commas and ONLY keep the first two parts (the most accurate local details).
+                            let addressParts = rawAddress.split(',');
+                            let fullLocation = addressParts.slice(0, 2).join(',').trim();
+
+                            document.getElementById("statusText").innerText = `📍 ${fullLocation}`;
+                            updateData.current_location = fullLocation;
+                        } else {
+                            document.getElementById("statusText").innerText = `📍 Detecting Area...`;
+                            updateData.current_location = "Moving...";
+                        }
 
                         document.getElementById("statusText").innerText = `📍 ${fullLocation}`;
                         updateData.current_location = fullLocation;
