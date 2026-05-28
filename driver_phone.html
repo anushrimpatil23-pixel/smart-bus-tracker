@@ -29,13 +29,14 @@
         <div id="statusText">Waiting to start...</div>
         <hr style="border: 0.5px solid rgba(255,255,255,0.2); margin: 15px 0;">
         <b>Raw GPS Data:</b>
-        <div id="coords">Lat: -- | Lng: --</div>
+        <div id="coords">Lat: -- | Lng: -- | Acc: --</div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <script>
+        // 1. FIREBASE SETUP
         const firebaseConfig = {
             databaseURL: "https://smartbustracker-25ceb-default-rtdb.firebaseio.com/",
             projectId: "smartbustracker-25ceb",
@@ -46,13 +47,14 @@
         let watchID = null;
         let lastGeocodeTime = 0;
 
+        // 2. TOGGLE TRACKING ON/OFF
         function toggleTracking() {
             const btn = document.getElementById("mainBtn");
             if (watchID === null) {
                 if (navigator.geolocation) {
-                    // Added timeout and forced high accuracy
+                    // Requesting High Accuracy and setting a 10-second timeout
                     watchID = navigator.geolocation.watchPosition(sendData, handleError, {
-                        enableHighAccuracy: true, 
+                        enableHighAccuracy: true,
                         maximumAge: 0,
                         timeout: 10000 
                     });
@@ -71,18 +73,20 @@
             }
         }
 
+        // 3. PROCESS AND SEND GPS DATA
         function sendData(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            const accuracy = position.coords.accuracy; // Gets the accuracy in meters
+            const accuracy = position.coords.accuracy; 
             
-            // THE FIX: If the accuracy is worse than 100 meters, ignore it!
-            if (accuracy > 100) {
-                document.getElementById("statusText").innerText = `📡 Calibrating GPS (Wait... ${Math.round(accuracy)}m accuracy)`;
-                return; // Stop here, don't send bad data to Firebase
+            // Filter: Ignore data if accuracy is worse than 1000 meters
+            if (accuracy > 1000) {
+                document.getElementById("statusText").innerText = `📡 Calibrating GPS... (${Math.round(accuracy)}m)`;
+                return; 
             }
 
-            document.getElementById("coords").innerText = `Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}`;
+            // Display live coordinates and accuracy on the driver's screen
+            document.getElementById("coords").innerText = `Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)} | Acc: ${Math.round(accuracy)}m`;
 
             let updateData = {
                 latitude: lat,
@@ -91,6 +95,8 @@
             };
 
             const currentTime = Date.now();
+            
+            // Only ask for the street name every 10 seconds to protect the API
             if (currentTime - lastGeocodeTime > 10000) {
                 lastGeocodeTime = currentTime;
                 
@@ -100,8 +106,12 @@
                         let rawAddress = data.display_name;
                         
                         if (rawAddress) {
+                            // Safely split the OpenStreetMap address and take the first two most specific parts
                             let addressParts = rawAddress.split(',');
-                            let fullLocation = addressParts.slice(0, 2).join(',').trim();
+                            let fullLocation = addressParts[0].trim();
+                            if (addressParts.length > 1) {
+                                fullLocation += ", " + addressParts[1].trim();
+                            }
 
                             document.getElementById("statusText").innerText = `📍 ${fullLocation}`;
                             updateData.current_location = fullLocation;
@@ -110,13 +120,15 @@
                             updateData.current_location = "Moving...";
                         }
                         
+                        // Send data to Firebase
                         database.ref('bus_01').update(updateData);
                     })
                     .catch(err => {
                         console.log("Geocoding delayed...");
-                        database.ref('bus_01').update(updateData); 
+                        database.ref('bus_01').update(updateData); // Send GPS even if name lookup fails
                     });
             } else {
+                // If 10 seconds haven't passed, just send the GPS coordinates to keep the map moving
                 database.ref('bus_01').update(updateData);
             }
         }
